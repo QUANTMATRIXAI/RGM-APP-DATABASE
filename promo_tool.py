@@ -3395,20 +3395,27 @@ def run(pid: int):
                 else:
                     cRight.warning("No volume or sales for share calculation or total is 0.")
 
+            # close any custom container you’d opened earlier
             st.markdown('</div>', unsafe_allow_html=True)
-            # Navigation buttons row
+
+            # separator
             st.markdown('---')
-            nav1, nav2 = st.columns([1,1])
-            with nav1:
-                if st.button("Back", key="mc_back"): go_back()
-            with nav2:
-                if st.button("Home", key="mc_home"): go_home()
 
+            # three equal‐width columns for Back / Home / Promo Intensity
+            col_back, col_home, col_promo = st.columns([1, 1, 1])
 
+            with col_back:
+                if st.button("Back", key="mc_back"):
+                    go_back()
 
-            if st.button("Go to Promo Intensity"):
-                st.session_state["page"] = "promo_intensity"
-                st.rerun()
+            with col_home:
+                if st.button("Home", key="mc_home"):
+                    go_home()
+
+            with col_promo:
+                if st.button("Go to Promo Intensity", key="mc_promo"):
+                    st.session_state["page"] = "promo_intensity"
+                    st.rerun()
                 
                 
 
