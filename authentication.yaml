@@ -1,0 +1,16 @@
+credentials:
+  usernames:
+    demo:
+      email: demo@example.com
+      name: Demo User
+      # bcrypt hash for “password123”
+      password: "$2b$12$KIXk6uFklAqYb3iQXHZVOO8Z3Njhzl8tL.EJ7QlW4mXVJp7jQGRgS"
+
+cookie:
+  name: auth_cookie
+  key: some_random_signature_key_please_change
+  expiry_days: 30
+
+preauthorized:
+  emails:
+    - demo@example.com
