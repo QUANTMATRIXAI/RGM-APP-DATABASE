@@ -8179,6 +8179,7 @@ def run(pid: int):
         # 5)  LEFT SIDE  •  BAR CHART (with labels inside bars, scrollable, no side Y-axis)
         # ──────────────────────────────────────────────────────────────────────────
         with left:
+            st.markdown("### Self-Elasticity Values by Model")
             df["Tick"] = df["Label"].apply(lambda s: "<br>".join(textwrap.wrap(s, 25)))
             bar_w, fig_h = 180, 700
             fig_w        = max(1200, bar_w * len(df))
