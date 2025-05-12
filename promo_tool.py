@@ -8174,8 +8174,9 @@ def run(pid: int):
         df = df_all[mask].copy()
         st.success(f"Rows after filters: {len(df)}")
 
+
         # ──────────────────────────────────────────────────────────────────────────
-        # 5)  LEFT SIDE  •  STACKED BAR + AG‑GRID  (chart code unchanged)
+        # 5)  LEFT SIDE  •  BAR CHART (with labels inside bars, scrollable, no side Y-axis)
         # ──────────────────────────────────────────────────────────────────────────
         with left:
             df["Tick"] = df["Label"].apply(lambda s: "<br>".join(textwrap.wrap(s, 25)))
@@ -8190,43 +8191,69 @@ def run(pid: int):
                 for i, f in enumerate(sorted(df["Fold"].unique())):
                     grp = df[df["Fold"] == f]
                     bars_fig.add_bar(
-                        x=grp["Tick"], y=grp["SelfElasticity"],
-                        name=f"Fold {f}",
+                        x=grp["Tick"], 
+                        y=grp["SelfElasticity"],
+                        name=f"Fold {f}",
                         marker_color=palette[i % len(palette)],
                         customdata=grp["Label"],
                         hovertemplate="<b>%{customdata}</b><br>Fold="
-                                    + str(f) + "<br>SelfElasticity=%{y:.2f}<extra></extra>")
+                                    + str(f) + "<br>SelfElasticity=%{y:.2f}<extra></extra>",
+                        text=grp["SelfElasticity"].round(2),  # Add text for inside the bars
+                        textposition="inside",  # Position the text inside the bars
+                        insidetextanchor="middle",  # Center the text
+                        textfont=dict(
+                            color="white",  # White text for visibility
+                            size=10  # Small enough to fit in bars
+                        )
+                    )
             else:
                 bars_fig.add_bar(
-                    x=df["Tick"], y=df["SelfElasticity"],
+                    x=df["Tick"], 
+                    y=df["SelfElasticity"],
                     marker_color="#FFBD59",
                     customdata=df["Label"],
-                    hovertemplate="<b>%{customdata}</b><br>SelfElasticity=%{y:.2f}<extra></extra>")
+                    hovertemplate="<b>%{customdata}</b><br>SelfElasticity=%{y:.2f}<extra></extra>",
+                    text=df["SelfElasticity"].round(2),  # Add text for inside the bars
+                    textposition="inside",  # Position the text inside the bars
+                    insidetextanchor="middle",  # Center the text
+                    textfont=dict(
+                        color="white",  # White text for visibility
+                        size=10  # Small enough to fit in bars
+                    )
+                )
 
-            bars_fig.update_layout(width=fig_w, barmode="stack",
+            bars_fig.update_layout(width=fig_w, 
+                                barmode="group",
+                                bargap=0.15,       # Gap between bars of adjacent location coordinates
+                                bargroupgap=0.1,   # Gap between bars of the same location coordinate
                                 xaxis=dict(tickangle=-45, tickfont=dict(size=10),
-                                            automargin=True, title="Models →"),
-                                yaxis=dict(showticklabels=False, range=y_range, zeroline=False),
-                                height=fig_h, margin=dict(l=10, r=10, t=60, b=120))
+                                        automargin=True, title="Models →"),
+                                yaxis=dict(
+                                    showticklabels=False, 
+                                    range=y_range, 
+                                    zeroline=True, 
+                                    zerolinecolor='black', 
+                                    zerolinewidth=1.5,
+                                    title=None  # Remove Y-axis title
+                                ),
+                                height=fig_h, 
+                                margin=dict(l=5, r=10, t=60, b=120))  # Reduced left margin
+
             bars_fig.add_shape(type="line", x0=-0.5, y0=0, x1=len(df)-0.5, y1=0,
                             line=dict(color="black", width=1.5))
 
-            axis_fig = go.Figure(go.Scatter(x=[0, 0], y=[0, 0], mode="markers", marker_opacity=0))
-            axis_fig.update_layout(width=120,
-                                yaxis=dict(title="SelfElasticity", range=y_range, zeroline=False),
-                                xaxis=dict(visible=False),
-                                height=fig_h, margin=dict(l=10, r=10, t=60, b=120))
-            axis_fig.add_shape(type="line", x0=0, y0=0, x1=1, y1=0,
-                            line=dict(color="black", width=1.5))
-
-            combo_html = f"""
-            <div style='display:flex; border:1px solid #ddd;'>
-            <div style='flex:0 0 120px; overflow:hidden;'>{axis_fig.to_html(include_plotlyjs='cdn', full_html=False)}</div>
-            <div style='flex:1 1 auto; overflow-x:auto;'>{bars_fig.to_html(include_plotlyjs=False, full_html=False)}</div>
+            # Create a scrollable container for the chart without the side Y-axis
+            bars_html = bars_fig.to_html(include_plotlyjs='cdn', full_html=False)
+            
+            scrollable_html = f"""
+            <div style='border:1px solid #ddd; width:100%; overflow-x:auto;'>
+                {bars_html}
             </div>
             """
-            st.components.v1.html(combo_html, height=fig_h + 100, scrolling=True)
-
+            st.components.v1.html(scrollable_html, height=fig_h + 100, scrolling=True)
+            
+    
+    
             # ──────────────────────────────────────────────────────────────────────
             # 6)  AG‑GRID  •  MULTI‑SELECT  +  **NEW SAVE LOGIC**
             # ──────────────────────────────────────────────────────────────────────
