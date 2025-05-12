@@ -1,0 +1,27 @@
+# Web framework
+streamlit
+
+# Data manipulation
+pandas
+numpy
+
+# Plotting and visualization
+plotly
+matplotlib
+seaborn
+
+# Statistical modeling
+statsmodels
+scipy
+
+# Time series and filtering
+pykalman
+
+# Machine learning and related tools
+scikit-learn
+xgboost
+
+# Grid based data components for Streamlit
+streamlit-aggrid==1.1.2
+
+openpyxl
