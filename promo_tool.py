@@ -8858,127 +8858,214 @@ def run(pid: int):
                         st.rerun()
 
 
-        # ░░░░░░░░░░░░░░░  PRICE-RELATIONSHIP DASHBOARD  ░░░░░░░░░░░░░░░
-        # put this right after the tabs section
-        st.markdown("---")
-        st.header("📈 Price-Relationship Analysis")
+  
+            # ░░░░░░░░░░░░░░░  PRICE-RELATIONSHIP DASHBOARD  ░░░░░░░░░░░░░░░
+            # put this right after the tabs section
+            st.markdown("---")
+            st.header("📈 Price-Relationship Analysis")
 
-        # ─────────────────────────────────────────────────────────────
-        # Get the first available raw DataFrame: D0 → dataframe1 → dataframe
-        # ─────────────────────────────────────────────────────────────
-        base_df = None
-        for _k in ("D0", "dataframe1", "dataframe"):
-            cand = st.session_state.get(_k)
-            if isinstance(cand, pd.DataFrame) and not cand.empty:
-                base_df = cand.copy()
-                break      # stop at the first non-empty DataFrame
+            # ─────────────────────────────────────────────────────────────
+            # Get the first available raw DataFrame: D0 → dataframe1 → dataframe
+            # ─────────────────────────────────────────────────────────────
+            base_df = None
+            for _k in ("D0", "dataframe1", "dataframe"):
+                cand = st.session_state.get(_k)
+                if isinstance(cand, pd.DataFrame) and not cand.empty:
+                    base_df = cand.copy()
+                    break      # stop at the first non-empty DataFrame
 
-        if base_df is None:
-            st.error("No raw data found in session (D0 / dataframe1 / dataframe).")
-            st.stop()
+            if base_df is None:
+                st.error("No raw data found in session (D0 / dataframe1 / dataframe).")
+                st.stop()
 
-        # ensure Date column exists & is datetime
-        if "Date" not in base_df.columns:
-            st.error("Raw data needs a 'Date' column.");  st.stop()
-        base_df = base_df.copy()
-        base_df["Date"] = pd.to_datetime(base_df["Date"], errors="coerce")
+            # ensure Date column exists & is datetime
+            if "Date" not in base_df.columns:
+                st.error("Raw data needs a 'Date' column.");  st.stop()
+            base_df = base_df.copy()
+            base_df["Date"] = pd.to_datetime(base_df["Date"], errors="coerce")
 
-        # --- 2) scope = first selected model row --------------------------------
-        sc_row = sel_df.iloc[0]         # sel_df already exists from earlier block
-        scope = {c: sc_row.get(c) for c in ["Channel","Brand","Variant","PPG"] if c in base_df.columns}
+            # --- 2) scope = first selected model row --------------------------------
+            sc_row = sel_df.iloc[0]         # sel_df already exists from earlier block
+            scope = {c: sc_row.get(c) for c in ["Channel","Brand","Variant","PPG"] if c in base_df.columns}
 
-        # split into BRAND data vs TOTAL market ----------------------------------
-        brand_df = base_df.copy()
-        for k,v in scope.items():
-            if v is not None and not pd.isna(v):
-                brand_df = brand_df[brand_df[k]==v]
+            # split into BRAND data vs TOTAL market ----------------------------------
+            brand_df = base_df.copy()
+            for k,v in scope.items():
+                if v is not None and not pd.isna(v):
+                    brand_df = brand_df[brand_df[k]==v]
 
-        if brand_df.empty:
-            st.warning("No rows in raw data match the selected model’s scope."); st.stop()
+            if brand_df.empty:
+                st.warning("No rows in raw data match the selected model’s scope."); st.stop()
 
-        # weekly calendar keys
-        brand_df["Year"] = brand_df["Date"].dt.isocalendar().year
-        brand_df["Week"] = brand_df["Date"].dt.isocalendar().week
-        brand_df["YearWeek"] = brand_df["Year"].astype(str)+"-W"+brand_df["Week"].astype(str).str.zfill(2)
+            # weekly calendar keys
+            brand_df["Year"] = brand_df["Date"].dt.isocalendar().year
+            brand_df["Week"] = brand_df["Date"].dt.isocalendar().week
+            brand_df["YearWeek"] = brand_df["Year"].astype(str)+"-W"+brand_df["Week"].astype(str).str.zfill(2)
 
-        # aggregate BRAND --------------------------------------------------------
-        gb_cols = ["Year","Week","YearWeek"]
-        agg_brand = (brand_df
-                    .groupby(gb_cols, as_index=False)
-                    .agg({"SalesValue":"sum","Volume":"sum","D1":"mean"}))
-        agg_brand = agg_brand[agg_brand["Volume"]>0]
-        agg_brand["Price"] = agg_brand["SalesValue"] / agg_brand["Volume"]
+            # aggregate BRAND --------------------------------------------------------
+            gb_cols = ["Year","Week","YearWeek"]
+            agg_brand = (brand_df
+                        .groupby(gb_cols, as_index=False)
+                        .agg({"SalesValue":"sum","Volume":"sum","D1":"mean"}))
+            agg_brand = agg_brand[agg_brand["Volume"]>0]
+            agg_brand["Price"] = agg_brand["SalesValue"] / agg_brand["Volume"]
 
-        # aggregate TOTAL --------------------------------------------------------
-        tot_df = base_df.copy()
-        tot_df["Year"] = tot_df["Date"].dt.isocalendar().year
-        tot_df["Week"] = tot_df["Date"].dt.isocalendar().week
-        tot_df["YearWeek"] = tot_df["Year"].astype(str)+"-W"+tot_df["Week"].astype(str).str.zfill(2)
+            # aggregate TOTAL --------------------------------------------------------
+            tot_df = base_df.copy()
+            tot_df["Year"] = tot_df["Date"].dt.isocalendar().year
+            tot_df["Week"] = tot_df["Date"].dt.isocalendar().week
+            tot_df["YearWeek"] = tot_df["Year"].astype(str)+"-W"+tot_df["Week"].astype(str).str.zfill(2)
 
-        agg_tot = (tot_df
-                .groupby(["Year","Week","YearWeek"],as_index=False)
-                .agg({"SalesValue":"sum"}).rename(columns={"SalesValue":"TotalSales"}))
+            agg_tot = (tot_df
+                    .groupby(["Year","Week","YearWeek"],as_index=False)
+                    .agg({"SalesValue":"sum"}).rename(columns={"SalesValue":"TotalSales"}))
 
-        # merge & compute market-share ------------------------------------------
-        merged = pd.merge(agg_brand, agg_tot, on=gb_cols, how="left")
-        merged["MarketShare"] = (merged["SalesValue"]/merged["TotalSales"]).clip(upper=1)*100
+            # merge & compute market-share ------------------------------------------
+            merged = pd.merge(agg_brand, agg_tot, on=gb_cols, how="left")
+            merged["MarketShare"] = (merged["SalesValue"]/merged["TotalSales"]).clip(upper=1)*100
 
-        # correlations for titles ------------------------------------------------
-        def _corr(a,b): 
-            return merged[a].corr(merged[b]) if merged[a].std()>0 and merged[b].std()>0 else np.nan
-        c1 = _corr("Price","Volume")
-        c2 = _corr("Price","SalesValue")
-        c3 = _corr("D1","Volume")
-        c4 = _corr("Price","MarketShare")
+            # correlations for titles ------------------------------------------------
+            def _corr(a,b): 
+                return merged[a].corr(merged[b]) if merged[a].std()>0 and merged[b].std()>0 else np.nan
+            c1 = _corr("Price","Volume")
+            c2 = _corr("Price","SalesValue")
+            c3 = _corr("D1","Volume")
+            c4 = _corr("Price","MarketShare")
 
-        from plotly.subplots import make_subplots
-        rel_fig = make_subplots(
-            rows=2, cols=2, specs=[[{"secondary_y":True}]*2]*2,
-            subplot_titles=[
-                f"Price vs Volume (r={c1:.2f})",
-                f"Price vs Sales (r={c2:.2f})",
-                f"Distribution vs Volume (r={c3:.2f})",
-                f"Market-Share vs Price (r={c4:.2f})"
-            ]
-        )
+            from plotly.subplots import make_subplots
+            rel_fig = make_subplots(
+                rows=2, cols=2, specs=[[{"secondary_y":True}]*2]*2,
+                subplot_titles=[
+                    f"Price vs Volume (r={c1:.2f})",
+                    f"Price vs Sales (r={c2:.2f})",
+                    f"Distribution vs Volume (r={c3:.2f})",
+                    f"Market-Share vs Price (r={c4:.2f})"
+                ]
+            )
 
-        # ---- Sub-plot 1 --------------------------------------------------------
-        rel_fig.add_scatter(x=merged["YearWeek"], y=merged["Price"],
-                            mode="lines+markers", name="Price", line=dict(color="#458EE2"),
-                            row=1,col=1, secondary_y=False)
-        rel_fig.add_scatter(x=merged["YearWeek"], y=merged["Volume"],
-                            mode="lines+markers", name="Volume", line=dict(color="#DB2B39"),
-                            row=1,col=1, secondary_y=True)
+            # ---- Sub-plot 1 --------------------------------------------------------
+            rel_fig.add_scatter(x=merged["YearWeek"], y=merged["Price"],
+                                mode="lines+markers", name="Price", line=dict(color="#458EE2"),
+                                row=1,col=1, secondary_y=False)
+            rel_fig.add_scatter(x=merged["YearWeek"], y=merged["Volume"],
+                                mode="lines+markers", name="Volume", line=dict(color="#DB2B39"),
+                                row=1,col=1, secondary_y=True)
 
-        # ---- Sub-plot 2 --------------------------------------------------------
-        rel_fig.add_scatter(x=merged["YearWeek"], y=merged["Price"],
-                            mode="lines+markers", showlegend=False, line=dict(color="#458EE2"),
-                            row=1,col=2, secondary_y=False)
-        rel_fig.add_scatter(x=merged["YearWeek"], y=merged["SalesValue"],
-                            mode="lines+markers", name="SalesValue", line=dict(color="#41C185"),
-                            row=1,col=2, secondary_y=True)
+            # ---- Sub-plot 2 --------------------------------------------------------
+            rel_fig.add_scatter(x=merged["YearWeek"], y=merged["Price"],
+                                mode="lines+markers", showlegend=False, line=dict(color="#458EE2"),
+                                row=1,col=2, secondary_y=False)
+            rel_fig.add_scatter(x=merged["YearWeek"], y=merged["SalesValue"],
+                                mode="lines+markers", name="SalesValue", line=dict(color="#41C185"),
+                                row=1,col=2, secondary_y=True)
 
-        # ---- Sub-plot 3 --------------------------------------------------------
-        rel_fig.add_scatter(x=merged["YearWeek"], y=merged["D1"],
-                            mode="lines+markers", name="Distribution", line=dict(color="#8E44AD"),
-                            row=2,col=1, secondary_y=False)
-        rel_fig.add_scatter(x=merged["YearWeek"], y=merged["Volume"],
-                            mode="lines+markers", showlegend=False, line=dict(color="#DB2B39"),
-                            row=2,col=1, secondary_y=True)
+            # ---- Sub-plot 3 --------------------------------------------------------
+            rel_fig.add_scatter(x=merged["YearWeek"], y=merged["D1"],
+                                mode="lines+markers", name="Distribution", line=dict(color="#8E44AD"),
+                                row=2,col=1, secondary_y=False)
+            rel_fig.add_scatter(x=merged["YearWeek"], y=merged["Volume"],
+                                mode="lines+markers", showlegend=False, line=dict(color="#DB2B39"),
+                                row=2,col=1, secondary_y=True)
 
-        # ---- Sub-plot 4 --------------------------------------------------------
-        rel_fig.add_scatter(x=merged["YearWeek"], y=merged["MarketShare"],
-                            mode="lines+markers", name="MarketShare", line=dict(color="#FFBD59"),
-                            row=2,col=2, secondary_y=False)
-        rel_fig.add_scatter(x=merged["YearWeek"], y=merged["Price"],
-                            mode="lines+markers", showlegend=False, line=dict(color="#458EE2", dash="dot"),
-                            row=2,col=2, secondary_y=True)
+            # ---- Sub-plot 4 --------------------------------------------------------
+            rel_fig.add_scatter(x=merged["YearWeek"], y=merged["MarketShare"],
+                                mode="lines+markers", name="MarketShare", line=dict(color="#FFBD59"),
+                                row=2,col=2, secondary_y=False)
+            rel_fig.add_scatter(x=merged["YearWeek"], y=merged["Price"],
+                                mode="lines+markers", showlegend=False, line=dict(color="#458EE2", dash="dot"),
+                                row=2,col=2, secondary_y=True)
 
-        rel_fig.update_layout(
-            height=900,  template="plotly_white",
+            rel_fig.update_layout(
+                height=900,  template="plotly_white",
+                title_text=f"Price-Relationship Dashboard  |  {scope}"
+            )
+            
+            rel_fig.update_layout(
+            height=900,
+            template="plotly_white",
             title_text=f"Price-Relationship Dashboard  |  {scope}"
-        )
-        st.plotly_chart(rel_fig, use_container_width=True)
+            )
+            
+            # ────────────────────────────────────────────────────────────────────────
+            #  Insert immediately before or after your rel_fig.update_layout(...)
+            # ────────────────────────────────────────────────────────────────────────
+
+            # Subplot 1: Price (left) & Volume (right)
+            rel_fig.update_yaxes(
+                title_text="Price",
+                row=1, col=1,
+                secondary_y=False,
+                side="left"
+            )
+            rel_fig.update_yaxes(
+                title_text="Volume",
+                row=1, col=1,
+                secondary_y=True,
+                side="right"
+            )
+
+            # Subplot 2: Price (left) & SalesValue (right)
+            rel_fig.update_yaxes(
+                title_text="Price",
+                row=1, col=2,
+                secondary_y=False,
+                side="left"
+            )
+            rel_fig.update_yaxes(
+                title_text="SalesValue",
+                row=1, col=2,
+                secondary_y=True,
+                side="right"
+            )
+
+            # Subplot 3: Distribution (left) & Volume (right)
+            rel_fig.update_yaxes(
+                title_text="Distribution",
+                row=2, col=1,
+                secondary_y=False,
+                side="left"
+            )
+            rel_fig.update_yaxes(
+                title_text="Volume",
+                row=2, col=1,
+                secondary_y=True,
+                side="right"
+            )
+
+            # Subplot 4: MarketShare (left) & Price (right)
+            rel_fig.update_yaxes(
+                title_text="MarketShare",
+                row=2, col=2,
+                secondary_y=False,
+                side="left"
+            )
+            rel_fig.update_yaxes(
+                title_text="Price",
+                row=2, col=2,
+                secondary_y=True,
+                side="right"
+            )
+
+
+            # ────────────────────────────────────────────────────────────────────
+            # now highlight the correlations in the subplot titles
+            import re
+
+            for ann in rel_fig.layout.annotations:
+                txt = ann.text
+                m = re.search(r"r=([-0-9.]+)", txt)
+                if m:
+                    r_val = float(m.group(1))
+                    # wrap in <b> so it shows bold
+                    new_r = f"<b>r={m.group(1)}</b>"
+                    ann.text = txt.replace(m.group(0), new_r)
+                    # color positive vs negative
+                    ann.font = dict(
+                        size=14,
+                        color="green" if r_val >= 0 else "red"
+                    )
+                    ann.align = "center"
+            st.plotly_chart(rel_fig, use_container_width=True)
 
         # ──────────────────────────────────────────────────────────────
         #  BOTTOM-OF-PAGE:  Go → Review
