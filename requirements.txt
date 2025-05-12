@@ -9,6 +9,7 @@ numpy
 plotly
 matplotlib
 seaborn
+streamlit-extras
 
 # Statistical modeling
 statsmodels
